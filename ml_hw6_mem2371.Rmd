@@ -113,24 +113,25 @@ abline(a = 0,b = 1)
 
 ```{r}
 set.seed(100)
-svm.diabetes = svm(diabetes ~ ., data = train_svm, kernel = "linear", cost = 1, scale = TRUE)
-print(svm.diabetes)
 
-svm.pred = predict(svm.diabetes, newdata = train_svm[,1:10])
-table(svm.pred, train_svm$diabetes)
-confusionMatrix(svm.pred, train_svm$diabetes, positive = "Yes")
+train_control = trainControl(method = "cv", number = 10)
 
-#Reminder this is how accuracy is calculated
-misClasificError <- mean(svm.pred != training$diabetes, na.rm = T)
-print(paste('Accuracy Model 1',1 - misClasificError))
+svm.diabetes = train(diabetes ~ ., data = training, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
 
-features = train_svm[,1:10]
-outcome = train_svm$diabetes
+svm.diabetes
 
-svm_tune = tune(svm, train.x = features, train.y = outcome,  kernel = "linear", range = list(cost = 10^(-3:2)))
+#Incorporate different values for cost
 
-summary(svm_tune)
-plot(svm_tune)
+svm.caret.2 = 
+  train(diabetes ~ ., 
+        data = training, method = "svmLinear", trControl = train_control,
+        preProcess = c("center", "scale"), 
+        tuneGrid = expand.grid(C = seq(0.00001,2, length = 30)))
+
+svm.caret.2
+plot(svm.caret.2)
+
+svm.caret.2$finalModel
 ```
 
 
