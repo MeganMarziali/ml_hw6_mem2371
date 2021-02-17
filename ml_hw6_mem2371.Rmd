@@ -109,11 +109,12 @@ main = "ROC Curve for Greater Firearm Fatalities")
 abline(a = 0,b = 1)
 ```
 
+The calculated accuracy of this model is 0.6962.
+
 ### Problem 2.2: Support Vector Classification
 
 ```{r}
 set.seed(100)
-
 train_control = trainControl(method = "cv", number = 10)
 
 svm.diabetes = train(diabetes ~ ., data = training, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
@@ -122,17 +123,33 @@ svm.diabetes
 
 #Incorporate different values for cost
 
-svm.caret.2 = 
+svm.diabetes.2 = 
   train(diabetes ~ ., 
         data = training, method = "svmLinear", trControl = train_control,
         preProcess = c("center", "scale"), 
         tuneGrid = expand.grid(C = seq(0.00001,2, length = 30)))
 
-svm.caret.2
-plot(svm.caret.2)
+svm.diabetes.2
+plot(svm.diabetes.2)
 
-svm.caret.2$finalModel
+svm.diabetes.2$finalModel
 ```
 
+The accuracy of this model is 0.896.
 
+### Problem 2.3: Logistic Regression
 
+```{r}
+lr.diabetes = glm(diabetes ~ . ,family = binomial(link = 'logit'),data = training)
+summary(lr.diabetes)
+
+fitted.results.2 = predict(lr.diabetes, testing, type = 'response') 
+fitted.results.p.2 = ifelse(fitted.results.2 > 0.5,1,0)
+
+testing.outcome.2 = (as.numeric(testing$diabetes) - 1)
+
+misClasificError.2 = mean(fitted.results.p.2 != testing.outcome.2, na.rm = T)
+print(paste('Accuracy Model LR',1 - misClasificError.2))
+```
+
+The accuracy of this model is 0.892.
