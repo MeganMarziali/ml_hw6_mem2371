@@ -61,7 +61,7 @@ With missing observations remove, the total number of observations in this datas
 summary(nhanes_restr$diabetes)
 ```
 
-There are 5697 "no" responses, and 659 "yes" responses, for a prevalence of diabetes within this sample of 11.6%.
+There are 5697 "no" responses, and 659 "yes" responses, for a prevalence of diabetes within this sample of 11.6%. This could be considered a rare outcome, and thus the analysis is conducted assuming rare outcome.
 
 ```{r message = FALSE, warning = FALSE}
 train.indices = createDataPartition(y = nhanes_restr$diabetes,p = 0.7,list = FALSE)
@@ -70,86 +70,133 @@ training = nhanes_restr[train.indices,]
 testing = nhanes_restr[-train.indices,]
 ```
 
-## Problem 2
+## Problem 2/3/4: Model Fit, Cross-Validation and Accuracy Testing
 
-### Problem 2.1: Classification Tree
+### Part 1: Classification Tree
 
 ```{r}
 set.seed(100)
 
-train.control = trainControl(method = "cv", number = 10, sampling = "down") #This is how to handle unbalanced outcome data
+# Creation of the train.control object to be carried through all modeling steps
+train.control = trainControl(method = "cv", number = 10, sampling = "down") 
+# (Using sampling down method because rare outcome)
+
+# Exploring appropriate hyperparameters via cross-validation 
 grid.2 = expand.grid(cp = seq(0.001, 0.3, by = 0.01))
-#cp = hyperparameter for classification tree
 tree.diabetes = train(diabetes~., data = training, method = "rpart",trControl = train.control, tuneGrid = grid.2)
 tree.diabetes$bestTune
 tree.diabetes
 
+# Exploring hyperparameters with smaller steps
 grid.3 = expand.grid(cp = seq(0.0005, 0.02, by = 0.001))
-tree.diabetes = train(diabetes~., data = training, method = "rpart",trControl = train.control, tuneGrid = grid.3)
-tree.diabetes$bestTune
-tree.diabetes # Calculated accuracy from here
+tree.diabetes.2 = train(diabetes~., data = training, method = "rpart",trControl = train.control, tuneGrid = grid.3)
+tree.diabetes.2$bestTune
+tree.diabetes.2
 
-varImp(tree.diabetes)
+varImp(tree.diabetes.2)
+rpart.plot(tree.diabetes.2$finalModel)
 
-rpart.plot(tree.diabetes$finalModel)
+# Using best fit model from above with testing data
+pred.diabetes = predict(tree.diabetes.2, testing)
+pred.diabetes.prob = predict(tree.diabetes.2, testing, type = "prob")
 
-pred.diabetes = predict(tree.diabetes, testing)
-pred.diabetes.prob = predict(tree.diabetes, testing, type = "prob")
-
+# Evaluating in testing data with confusion matrix
 eval.results = confusionMatrix(pred.diabetes, testing$diabetes, positive = "Yes")
-print(eval.results) # how do we get final accuracy
+print(eval.results)
 
+# ROC curve
 analysis = roc(response = testing$diabetes, predictor = pred.diabetes.prob[,2])
-plot(1 - analysis$specificities,analysis$sensitivities,type = "l",
-ylab = "Sensitiviy",xlab = "1-Specificity",col = "black",lwd = 2,
-main = "ROC Curve for Greater Firearm Fatalities")
-abline(a = 0,b = 1)
-
-# do we need to do an ROC curve, already evaluating with a confusion matrix?
-
+plot(1 - analysis$specificities,
+     analysis$sensitivities,
+     type = "l",
+     ylab = "Sensitiviy",
+     xlab = "1-Specificity",
+     col = "black",
+     lwd = 2,
+     main = "Classification Tree ROC Curve for Diabetes") %>% 
+  abline(a = 0,b = 1)
 ```
 
-The calculated accuracy of this model is 0.74.
+The calculated accuracy of this model is 0.70.
 
-### Problem 2.2: Support Vector Classification
+### Part 2: Support Vector Classification
 
 ```{r}
 set.seed(100)
-train_control = trainControl(method = "cv", number = 10, sampling = "down")
-# do we have to do sampling down again?
 
-svm.diabetes = train(diabetes ~ ., data = training, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
+# Exploring appropriate hyperparameters via cross-validation 
+svm.diabetes = 
+  train(diabetes ~ ., 
+        data = training, 
+        method = "svmLinear", 
+        trControl = train.control, 
+        preProcess = c("center", "scale"))
 svm.diabetes
 
-#Incorporate different values for cost
-
+# Incorporate different values for cost
 svm.diabetes.2 = 
   train(diabetes ~ ., 
-        data = training, method = "svmLinear", 
-        trControl = train_control,
+        data = training, 
+        method = "svmLinear", 
+        trControl = train.control,
         preProcess = c("center", "scale"), 
         tuneGrid = expand.grid(C = seq(0.00001,2, length = 30)))
 svm.diabetes.2
-
-# why do these have the same accuracy?
 svm.diabetes.2$finalModel
 
+# Found accuracy to be better for the second model, using this going forward.
+
+# Testing the second SVM model in the testing dataest
 svm.pred = predict(svm.diabetes.2, newdata = testing[,1:10])
+
+svm.pred.prob = predict(svm.diabetes.2, testing, type = "raw")
+
 table(svm.pred, testing$diabetes)
 confusionMatrix(svm.pred, testing$diabetes, positive = "Yes")
+
+# ROC curve
+roc.svm = roc(response = testing$diabetes, predictor = as.numeric(svm.pred))
+plot(1 - roc.svm$specificities,
+     roc.svm$sensitivities,
+     type = "l",
+     ylab = "Sensitiviy",
+     xlab = "1-Specificity",
+     col = "black",
+     lwd = 2,
+     main = "SVM ROC Curve for Diabetes") %>% 
+  abline(a = 0,b = 1)
 ```
 
-The calculated accuracy of this model is 0.85.
+The calculated accuracy of this model is 0.83.
 
-### Problem 2.3: Logistic Regression
+### Part 3: Logistic Regression
 
 ```{r}
-train.control.3 = trainControl(method = "cv", number = 10, sampling = "down")
+# Building logistic regression model
+lr.diabetes = 
+  train(diabetes ~ ., 
+        data = training, 
+        trControl = train.control.3, 
+        method = "glm", 
+        family = binomial())
 
-lr.diabetes = train(diabetes ~ ., data = training, trControl = train.control.3, method = "glm", family = binomial())
-
+# Running with testing data
 lr.pred = predict(lr.diabetes, testing, type = "raw")
 confusionMatrix(lr.pred, testing$diabetes, positive = "Yes")
+
+# ROC curve
+roc.lr = roc(response = testing$diabetes, predictor = as.numeric(lr.pred))
+plot(1 - roc.lr$specificities,
+     roc.lr$sensitivities,
+     type = "l",
+     ylab = "Sensitiviy",
+     xlab = "1-Specificity",
+     col = "black",
+     lwd = 2,
+     main = "SVM ROC Curve for Diabetes") %>% 
+  abline(a = 0,b = 1)
 ```
 
-The accuracy of this model is 0.71.
+The accuracy of this model is 0.73.
+
+
