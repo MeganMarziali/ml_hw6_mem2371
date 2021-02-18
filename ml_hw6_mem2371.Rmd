@@ -199,4 +199,7 @@ plot(1 - roc.lr$specificities,
 
 The accuracy of this model is 0.73.
 
+## Problem 5
+
+Given the output above, the best-fitting model is the support vector classification model. One limitation of using an SVC model involves limited interpretability. While this model can be used to understand the performance of a single variable, interpretability could be challenging for the reader of the analysis if they are not well-versed in machine learning techniques. An additional limitation of this technique, as it is applied in this analysis, is that it is commonly used with linear outcomes. As we have opted to apply it with a binary outcome, it could be confusing for readers who are more accustomed to seeing this technique employed with linear outcomes. This could cause issues regarding interpretability. 
 
