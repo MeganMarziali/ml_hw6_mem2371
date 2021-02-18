@@ -68,11 +68,6 @@ train.indices = createDataPartition(y = nhanes_restr$diabetes,p = 0.7,list = FAL
 
 training = nhanes_restr[train.indices,]
 testing = nhanes_restr[-train.indices,]
-
-train.indices = createDataPartition(y = nhanes_svm$diabetes,p = 0.7,list = FALSE)
-
-train_svm = nhanes_svm[train.indices,]
-test_svm = nhanes_svm[-train.indices,]
 ```
 
 ## Problem 2
@@ -82,16 +77,18 @@ test_svm = nhanes_svm[-train.indices,]
 ```{r}
 set.seed(100)
 
-train.control = trainControl(method = "cv", number = 10, sampling = "down")
+train.control = trainControl(method = "cv", number = 10, sampling = "down") #This is how to handle unbalanced outcome data
 grid.2 = expand.grid(cp = seq(0.001, 0.3, by = 0.01))
+#cp = hyperparameter for classification tree
 tree.diabetes = train(diabetes~., data = training, method = "rpart",trControl = train.control, tuneGrid = grid.2)
 tree.diabetes$bestTune
+tree.diabetes
 
 grid.3 = expand.grid(cp = seq(0.0005, 0.02, by = 0.001))
 tree.diabetes = train(diabetes~., data = training, method = "rpart",trControl = train.control, tuneGrid = grid.3)
 tree.diabetes$bestTune
+tree.diabetes # Calculated accuracy from here
 
-tree.diabetes
 varImp(tree.diabetes)
 
 rpart.plot(tree.diabetes$finalModel)
@@ -100,56 +97,59 @@ pred.diabetes = predict(tree.diabetes, testing)
 pred.diabetes.prob = predict(tree.diabetes, testing, type = "prob")
 
 eval.results = confusionMatrix(pred.diabetes, testing$diabetes, positive = "Yes")
-print(eval.results)
+print(eval.results) # how do we get final accuracy
 
 analysis = roc(response = testing$diabetes, predictor = pred.diabetes.prob[,2])
 plot(1 - analysis$specificities,analysis$sensitivities,type = "l",
 ylab = "Sensitiviy",xlab = "1-Specificity",col = "black",lwd = 2,
 main = "ROC Curve for Greater Firearm Fatalities")
 abline(a = 0,b = 1)
+
+# do we need to do an ROC curve, already evaluating with a confusion matrix?
+
 ```
 
-The calculated accuracy of this model is 0.6962.
+The calculated accuracy of this model is 0.74.
 
 ### Problem 2.2: Support Vector Classification
 
 ```{r}
 set.seed(100)
-train_control = trainControl(method = "cv", number = 10)
+train_control = trainControl(method = "cv", number = 10, sampling = "down")
+# do we have to do sampling down again?
 
 svm.diabetes = train(diabetes ~ ., data = training, method = "svmLinear", trControl = train_control, preProcess = c("center", "scale"))
-
 svm.diabetes
 
 #Incorporate different values for cost
 
 svm.diabetes.2 = 
   train(diabetes ~ ., 
-        data = training, method = "svmLinear", trControl = train_control,
+        data = training, method = "svmLinear", 
+        trControl = train_control,
         preProcess = c("center", "scale"), 
         tuneGrid = expand.grid(C = seq(0.00001,2, length = 30)))
-
 svm.diabetes.2
-plot(svm.diabetes.2)
 
+# why do these have the same accuracy?
 svm.diabetes.2$finalModel
+
+svm.pred = predict(svm.diabetes.2, newdata = testing[,1:10])
+table(svm.pred, testing$diabetes)
+confusionMatrix(svm.pred, testing$diabetes, positive = "Yes")
 ```
 
-The accuracy of this model is 0.896.
+The calculated accuracy of this model is 0.85.
 
 ### Problem 2.3: Logistic Regression
 
 ```{r}
-lr.diabetes = glm(diabetes ~ . ,family = binomial(link = 'logit'),data = training)
-summary(lr.diabetes)
+train.control.3 = trainControl(method = "cv", number = 10, sampling = "down")
 
-fitted.results.2 = predict(lr.diabetes, testing, type = 'response') 
-fitted.results.p.2 = ifelse(fitted.results.2 > 0.5,1,0)
+lr.diabetes = train(diabetes ~ ., data = training, trControl = train.control.3, method = "glm", family = binomial())
 
-testing.outcome.2 = (as.numeric(testing$diabetes) - 1)
-
-misClasificError.2 = mean(fitted.results.p.2 != testing.outcome.2, na.rm = T)
-print(paste('Accuracy Model LR',1 - misClasificError.2))
+lr.pred = predict(lr.diabetes, testing, type = "raw")
+confusionMatrix(lr.pred, testing$diabetes, positive = "Yes")
 ```
 
-The accuracy of this model is 0.892.
+The accuracy of this model is 0.71.
