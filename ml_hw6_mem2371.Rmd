@@ -165,6 +165,9 @@ plot(1 - roc.svm$specificities,
      lwd = 2,
      main = "SVM ROC Curve for Diabetes") %>% 
   abline(a = 0,b = 1)
+
+
+
 ```
 
 The calculated accuracy of this model is 0.83.
@@ -176,7 +179,7 @@ The calculated accuracy of this model is 0.83.
 lr.diabetes = 
   train(diabetes ~ ., 
         data = training, 
-        trControl = train.control.3, 
+        trControl = train.control, 
         method = "glm", 
         family = binomial())
 
