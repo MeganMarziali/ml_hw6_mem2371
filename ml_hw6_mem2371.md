@@ -42,20 +42,10 @@ missmap(nhanes)
 
 It seems that education, smoking and pulse have a large amount of
 missing observations. However, I opted to keep all variables and exclude
-missing observations. Once missing observations were removed, I recoded
-factor variables to numeric to be able to conduct SVC.
+missing observations.
 
 ``` r
 nhanes_restr = nhanes %>% na.omit()
-
-nhanes_svm = nhanes_restr %>% 
-  mutate(
-    race1 = as.numeric(race1),
-    education = as.numeric(education),
-    hh_income = as.numeric(hh_income),
-    phys_active = as.numeric(phys_active),
-    smoke100 = as.numeric(smoke100)
-  )
 ```
 
 With missing observations remove, the total number of observations in
@@ -63,11 +53,14 @@ this dataset is 6356. I next checked the balance of the outcome
 observations within the dataset:
 
 ``` r
-summary(nhanes_restr$diabetes)
+summary(nhanes_restr$diabetes) %>% 
+  knitr::kable()
 ```
 
-    ##   No  Yes 
-    ## 5697  659
+|     |    x |
+| :-- | ---: |
+| No  | 5697 |
+| Yes |  659 |
 
 There are 5697 “no” responses, and 659 “yes” responses, for a prevalence
 of diabetes within this sample of 11.6%. This could be considered a rare
@@ -83,6 +76,10 @@ testing = nhanes_restr[-train.indices,]
 ## Problem 2/3/4: Model Fit, Cross-Validation and Accuracy Testing
 
 ### Part 1: Classification Tree
+
+The following code chunk runs through model fitting of a classification
+tree, and selecting appropriate hyperparameters using cross-validation.
+Final accuracy testing is also accomplished.
 
 ``` r
 set.seed(100)
@@ -301,7 +298,7 @@ plot(1 - analysis$specificities,
 
 ![](ml_hw6_mem2371_files/figure-gfm/unnamed-chunk-7-2.png)<!-- -->
 
-The calculated accuracy of this model is 0.70.
+The calculated accuracy of this model is **0.70**.
 
 ### Part 2: Support Vector Classification
 
@@ -460,30 +457,7 @@ confusionMatrix(svm.pred, testing$diabetes, positive = "Yes")
     ##        'Positive' Class : Yes             
     ## 
 
-``` r
-# ROC curve
-roc.svm = roc(response = testing$diabetes, predictor = as.numeric(svm.pred))
-```
-
-    ## Setting levels: control = No, case = Yes
-
-    ## Setting direction: controls < cases
-
-``` r
-plot(1 - roc.svm$specificities,
-     roc.svm$sensitivities,
-     type = "l",
-     ylab = "Sensitiviy",
-     xlab = "1-Specificity",
-     col = "black",
-     lwd = 2,
-     main = "SVM ROC Curve for Diabetes") %>% 
-  abline(a = 0,b = 1)
-```
-
-![](ml_hw6_mem2371_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
-
-The calculated accuracy of this model is 0.83.
+The calculated accuracy of this model is **0.83**.
 
 ### Part 3: Logistic Regression
 
@@ -529,41 +503,16 @@ confusionMatrix(lr.pred, testing$diabetes, positive = "Yes")
     ##        'Positive' Class : Yes            
     ## 
 
-``` r
-# ROC curve
-roc.lr = roc(response = testing$diabetes, predictor = as.numeric(lr.pred))
-```
-
-    ## Setting levels: control = No, case = Yes
-
-    ## Setting direction: controls < cases
-
-``` r
-plot(1 - roc.lr$specificities,
-     roc.lr$sensitivities,
-     type = "l",
-     ylab = "Sensitiviy",
-     xlab = "1-Specificity",
-     col = "black",
-     lwd = 2,
-     main = "SVM ROC Curve for Diabetes") %>% 
-  abline(a = 0,b = 1)
-```
-
-![](ml_hw6_mem2371_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
-
-The accuracy of this model is 0.73.
+The accuracy of this model is **0.73**.
 
 ## Problem 5
 
-Given the output above, the best-fitting model is the support vector
-classification model. One limitation of using an SVC model involves
+Given the output above, the best-fitting model is the **support vector
+classification model**. One limitation of using an SVC model involves
 limited interpretability. While this model can be used to understand the
 performance of a single variable, interpretability could be challenging
 for the reader of the analysis if they are not well-versed in machine
-learning techniques. An additional limitation of this technique, as it
-is applied in this analysis, is that it is commonly used with linear
-outcomes. As we have opted to apply it with a binary outcome, it could
-be confusing for readers who are more accustomed to seeing this
-technique employed with linear outcomes. This could cause issues
-regarding interpretability.
+learning techniques. An additional limitation of this technique is that
+SVMs are not suitable for large datasets. Applying this technique for an
+analysis within a large dataset may result in long computational times
+when training.
